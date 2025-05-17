@@ -9,29 +9,45 @@ aws ec2 describe-images \
 
 / output for ubuntu t2.micro AMI - ami-0a7d80731ae1b2435 
 
+/ aws cli command to create custom vpc
+aws ec2 create-vpc \
+  --cidr-block 10.0.0.0/16 \
+  --tag-specifications 'ResourceType=vpc,Tags=[{Key=Name,Value=MyCustomVPC}]'
+/output of vpc, vpcid = "vpc-0e6ce7151ed3fd2e3"
+
+/aws cli command to ceatea a custom subnet
+/aws ec2 create-subnet \
+  --vpc-id vpc-0e6ce7151ed3fd2e3 \
+  --cidr-block 10.0.1.0/24 \
+  --availability-zone us-east-1a \
+  --tag-specifications 'ResourceType=subnet,Tags=[{Key=Name,Value=MyCustomSubnet}]'
+
+/output subnet id= "subnet-01051fd81ad3f668b"
+
 /* aws cli command to create a key-pair named "myclikeypair" 
 
 aws ec2 create-key-pair \
-  --key-name MycliKeyPair \
+  --key-name cli-keypair \
   --query 'KeyMaterial' \
-  --output text > MycliKeyPair.pem
+  --output text > cli-Keypair.pem
 
 / change the permissions for the key pair to the appropriate key pairs 
 
 chmod 700 MycliKeyPair.pem
 
-/ aws-cli command to create a security group with name (my-ec2-sg) 
-
+/ aws-cli command to create a security group in custom vpc. note: attacch custom vpc id
 aws ec2 create-security-group \
   --group-name my-ec2-sg \
-  --description "Allow SSH HTTP and ICMP" \
-  --vpc-id $(aws ec2 describe-vpcs --query 'Vpcs[0].VpcId' --output text)
+  --description "Security group for my EC2 instance" \
+  --vpc-id vpc-0e6ce7151ed3fd2e3 
 
-/ OUTPUT FOR SECURITY GROUP ID AND ARN: 
-{
-    "GroupId": "sg-00234e3e4837fa299",
-    "SecurityGroupArn": "arn:aws:ec2:us-east-1:814647154673:security-group/sg-00234e3e4837fa299"
-}
+/ aws-cli commmand to create rules, ssh and http for security group
+/aws ec2 authorize-security-group-ingress \
+  --group-id sg-082bb0ee3f7072c58 \
+  --protocol tcp \
+  --port 22 \
+  --cidr 0.0.0.0/0
+
 
 / aws cli commands to see the created security groups and the security group id
 
@@ -40,31 +56,19 @@ aws ec2 describe-security-groups \
   --output table
  
 / outputs will look like this 
----------------------------------------------
-|          DescribeSecurityGroups           |
-+-----------------------+-------------------+
-|  sg-00234e3e4837fa299 |  my-ec2-sg        |
-|  sg-065572f0d249e660e |  default          |
-|  sg-0ee9a442a4d48db20 |  launch-wizard-2  |
-|  sg-07aafeb8d4453f563 |  launch-wizard-3  |
-+-----------------------+-------------------+
 
-/ aws cli commands to allow SSH protocol connection from anywhere (port 22)
 
-aws ec2 authorize-security-group-ingress \
-  --group-name mycli-sg \
-  --protocol tcp \
-  --port 22 \
-  --cidr 0.0.0.0/0
 
-/aws cli commands to create sg inbound rule to allow for HTTP connection to ec2 instance (port 80)
+/
+aws ec2 run-instances \
+  --image-id ami-0c02fb55956c7d316 \  
+  --count 1 \
+  --instance-type t2.micro \
+  --key-name mycli \  
+  --subnet-id subnet-01051fd81ad3f668b \  
+  --security-group-ids sg-082bb0ee3f7072c58 \
+  --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=MyEC2InSubnet}]'
 
-aws ec2 authorize-security-group-ingress \
-  --group-name my-ec2-sg \
-  --protocol tcp \
-  --port 80 \
-  --cidr 0.0.0.0/0
- 
 
 /aws cli commands to see the security group rules you've created within the security group (my-ec2-sg)
 aws ec2 describe-security-groups \
@@ -106,13 +110,14 @@ aws ec2 describe-security-groups \
 /AWS CLI command to launch the ec2 instance 
 
 aws ec2 run-instances \
-  --image-id ami-0a7d80731ae1b2435 \  # <- replace with your actual AMI ID
+  --image-id ami-0718b4ac01274c8cb \
   --count 1 \
   --instance-type t2.micro \
-  --key-name MycliKeyPair \
-  --security-groups my-ec2-sg \
-  --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=MyUbuntuInstance}]'
-
+  --key-name amazon \
+  --subnet-id subnet-01c83e4f9da23a162 \
+  --security-group-ids sg-00b921ec96ba28e7a \
+  --associate-public-ip-address \
+  --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=MyUbuntuEC2}]'
 /AWS cli commands to see the state of all instances 
 
 aws ec2 describe-instances \
